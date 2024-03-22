@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import timedelta
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import log_loss
 import optuna
 from keras.models import Model, Sequential
 from keras.layers import Input, LSTM, Dense, Dropout
@@ -89,7 +91,7 @@ def objective(trial, X_train, y_train_metalabel, y_train_ret, X_val, y_val_metal
     pred_ret = predictions[1].flatten()       # リターン予測
 
     # 損失の計算
-    loss_metalabel = mean_squared_error(y_val_metalabel, pred_metalabel)
+    loss_metalabel = log_loss(y_val_metalabel, pred_metalabel)
     loss_ret = mean_squared_error(y_val_ret, pred_ret)
 
     # 合計損失を返す
@@ -152,8 +154,7 @@ def make_model(X, y_metalabel, y_ret, best_params, n_splits=5):
     # モデルの訓練
     model.fit(X_train, [y_train_metalabel, y_train_ret],
               validation_data=(X_val, [y_val_metalabel, y_val_ret]),
-              epochs=10, batch_size=32, verbose=0,
-              callbacks=[EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)])
+              epochs=10, batch_size=32, verbose=0)
 
     # 訓練済みモデルの返却
     return model
@@ -267,8 +268,8 @@ class Strategy(BaseStrategy):
             latest_signal_symbol = latest_signal.loc[(latest_timestamp, symbol), :]
 
             # 最大ポジションを設定し、現在のポジションがそれを超えてないかチェックする
-            lot_size_dollar = asset_info.nav[symbol] / 20
-            max_lot =  asset_info.nav[symbol] / 10 #symbolの現在の総資産
+            lot_size_dollar = asset_info.nav / 20
+            max_lot =  asset_info.nav / 10 #symbolの現在の総資産
             position_price = pos_size * avg_price
             max_pos_flag = position_price > max_lot
             # 利確と損切のフラグを作成する
